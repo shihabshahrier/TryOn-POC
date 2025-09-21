@@ -92,13 +92,31 @@ async def upload_product_photo(
     db.commit()
     db.refresh(db_product)
     
-    return db_product
+    # Return product with image_url
+    return {
+        "id": db_product.id,
+        "name": db_product.name,
+        "filepath": db_product.filepath,
+        "image_url": f"/static/{db_product.filepath}",
+        "created_at": db_product.created_at
+    }
 
 @app.get("/products", response_model=List[ProductResponse])
 async def get_products(db: Session = Depends(get_db)):
     """Get all products"""
     products = db.query(Product).all()
-    return products
+    # Add image_url to each product
+    products_with_urls = []
+    for product in products:
+        product_dict = {
+            "id": product.id,
+            "name": product.name,
+            "filepath": product.filepath,
+            "image_url": f"/static/{product.filepath}",
+            "created_at": product.created_at
+        }
+        products_with_urls.append(product_dict)
+    return products_with_urls
 
 @app.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: int, db: Session = Depends(get_db)):
@@ -106,7 +124,14 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return product
+    
+    return {
+        "id": product.id,
+        "name": product.name,
+        "filepath": product.filepath,
+        "image_url": f"/static/{product.filepath}",
+        "created_at": product.created_at
+    }
 
 # User photo upload
 @app.post("/upload-user-photo")

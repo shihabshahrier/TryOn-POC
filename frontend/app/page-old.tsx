@@ -4,8 +4,19 @@ import React, { useState, useEffect } from 'react';
 import FileUpload from '@/components/FileUpload';
 import ImagePreview from '@/components/ImagePreview';
 import LoadingSpinner from '@/components/LoadingSpinner';
+// import { 
+//   createUser, 
+//   uploadUserPhoto, 
+//   uploadProductPhoto, 
+//   getProducts, 
+//   tryOn, 
+//   healthCheck,
+//   User,
+//   Product,
+//   TryOnResponse
+// } from '@/lib/api';
 
-// Types
+// Temporary types
 interface User {
   id: number;
   name?: string;
@@ -15,7 +26,7 @@ interface User {
 interface Product {
   id: number;
   name: string;
-  image_url: string;
+  filepath: string;
   created_at: string;
 }
 
@@ -27,12 +38,10 @@ interface TryOnResponse {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [userId, setUserId] = useState<number | null>(null);
-  const [productId, setProductId] = useState<number | null>(null);
   const [userPhoto, setUserPhoto] = useState<File | null>(null);
-  const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null);
+  const [userPhotoPreview, setUserPhotoPreview] = useState<string>('');
   const [productPhoto, setProductPhoto] = useState<File | null>(null);
-  const [productPhotoPreview, setProductPhotoPreview] = useState<string | null>(null);
+  const [productPhotoPreview, setProductPhotoPreview] = useState<string>('');
   const [productName, setProductName] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -91,37 +100,44 @@ export default function Home() {
 
   const handleUserPhotoSelect = (file: File) => {
     setUserPhoto(file);
-    setUserPhotoPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUserPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProductPhotoSelect = (file: File) => {
     setProductPhoto(file);
-    setProductPhotoPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setProductPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUploadUserPhoto = async () => {
     if (!user || !userPhoto) return;
 
-    setIsLoading(true);
-    setError('');
-
     try {
+      setIsLoading(true);
+      setError('');
       const formData = new FormData();
-      formData.append('file', userPhoto);
       formData.append('user_id', user.id.toString());
+      formData.append('file', userPhoto);
 
       const response = await fetch('/api/upload-user-photo', {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) throw new Error('Failed to upload user photo');
-      
-      const uploadedPhoto = await response.json();
-      setUserId(user.id);
-      console.log('User photo uploaded:', uploadedPhoto);
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      alert('User photo uploaded successfully!');
     } catch (err) {
-      console.error('Upload failed:', err);
+      console.error('Failed to upload user photo:', err);
       setError('Failed to upload user photo');
     } finally {
       setIsLoading(false);
@@ -129,78 +145,72 @@ export default function Home() {
   };
 
   const handleUploadProductPhoto = async () => {
-    if (!productPhoto || !productName.trim()) return;
-
-    setIsLoading(true);
-    setError('');
+    if (!productPhoto || !productName.trim()) {
+      setError('Please provide both product photo and name');
+      return;
+    }
 
     try {
+      setIsLoading(true);
+      setError('');
       const formData = new FormData();
+      formData.append('name', productName);
       formData.append('file', productPhoto);
-      formData.append('name', productName.trim());
 
       const response = await fetch('/api/upload-product-photo', {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) throw new Error('Failed to upload product photo');
-      
-      const uploadedProduct = await response.json();
-      setProductId(uploadedProduct.id);
-      console.log('Product uploaded:', uploadedProduct);
-      
-      // Reload products list
-      const productsResponse = await fetch('/api/products');
-      const productsList = await productsResponse.json();
-      setProducts(productsList);
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const newProduct = await response.json();
+      setProducts(prev => [...prev, newProduct]);
+      setSelectedProduct(newProduct);
+      setProductName('');
+      setProductPhoto(null);
+      setProductPhotoPreview('');
+      alert('Product uploaded successfully!');
     } catch (err) {
-      console.error('Upload failed:', err);
-      setError('Failed to upload product photo');
+      console.error('Failed to upload product:', err);
+      setError('Failed to upload product');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleTryOn = async () => {
-    if (!userId || !productId) return;
-
-    setIsLoading(true);
-    setError('');
+    if (!user || !selectedProduct) {
+      setError('Please upload user photo and select a product');
+      return;
+    }
 
     try {
+      setIsLoading(true);
+      setError('');
       const response = await fetch('/api/tryon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, product_id: productId })
+        body: JSON.stringify({
+          user_id: user.id,
+          product_id: selectedProduct.id
+        })
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Try-on failed');
+        throw new Error('Try-on generation failed');
       }
 
       const tryOnResult = await response.json();
       setResult(tryOnResult);
-      console.log('Try-on successful:', tryOnResult);
     } catch (err) {
-      console.error('Try-on failed:', err);
-      setError(err instanceof Error ? err.message : 'Try-on failed');
+      console.error('Failed to generate try-on:', err);
+      setError('Failed to generate try-on image');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setResult(null);
-    setUserPhoto(null);
-    setProductPhoto(null);
-    setUserPhotoPreview(null);
-    setProductPhotoPreview(null);
-    setProductName('');
-    setUserId(null);
-    setProductId(null);
-    setError('');
   };
 
   return (
@@ -345,33 +355,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Try-On Result Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 text-center">✨ Step 3: Try-On Result</h2>
-              
-              {!result ? (
-                <div className="aspect-[3/4] bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="mx-auto w-12 h-12 text-gray-400 mb-4">
-                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500">Try-on result will appear here</p>
-                    <p className="text-xs text-gray-400 mt-2">Upload photos and try on!</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="aspect-[3/4] relative rounded-lg overflow-hidden border-2 border-green-200">
-                  <img 
-                    src={`/api${result.output_image_url}`}
-                    alt="Try-on result" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
             </div>
-          </div>
 
           {/* Try-On Action */}
           <div className="text-center">
@@ -408,7 +392,7 @@ export default function Home() {
                   <h3 className="text-lg font-medium mb-3 text-gray-700">Your Original Photo</h3>
                   <div className="aspect-[3/4] relative rounded-lg overflow-hidden border-2 border-gray-200">
                     <img 
-                      src={userPhotoPreview || ''} 
+                      src={userPhotoPreview} 
                       alt="Your original photo" 
                       className="w-full h-full object-cover"
                     />
@@ -420,7 +404,7 @@ export default function Home() {
                   <h3 className="text-lg font-medium mb-3 text-gray-700">Product</h3>
                   <div className="aspect-square relative rounded-lg overflow-hidden border-2 border-gray-200">
                     <img 
-                      src={productPhotoPreview || ''} 
+                      src={productPhotoPreview} 
                       alt="Product" 
                       className="w-full h-full object-cover"
                     />
@@ -448,18 +432,13 @@ export default function Home() {
                     </a>
                     <button
                       onClick={() => {
-                        if (navigator.share) {
-                          navigator.share({
-                            title: 'My Virtual Try-On Result',
-                            url: `${window.location.origin}/api${result.output_image_url}`
-                          }).catch(() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/api${result.output_image_url}`);
-                            alert('Link copied to clipboard!');
-                          });
-                        } else {
+                        navigator.share?.({
+                          title: 'My Virtual Try-On Result',
+                          url: `${window.location.origin}/api${result.output_image_url}`
+                        }).catch(() => {
                           navigator.clipboard.writeText(`${window.location.origin}/api${result.output_image_url}`);
                           alert('Link copied to clipboard!');
-                        }
+                        });
                       }}
                       className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
                     >
@@ -472,40 +451,20 @@ export default function Home() {
               {/* Try Another Button */}
               <div className="text-center mt-8">
                 <button
-                  onClick={resetForm}
+                  onClick={() => {
+                    setResult(null);
+                    setUserPhoto(null);
+                    setProductPhoto(null);
+                    setUserPhotoPreview(null);
+                    setProductPhotoPreview(null);
+                    setProductName('');
+                    setUserId(null);
+                    setProductId(null);
+                  }}
                   className="bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 font-medium"
                 >
                   🔄 Try Another Look
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Product Selection from Existing */}
-          {products.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">📦 Or Select from Existing Products</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {products.map((product) => (
-                  <div
-                    key={product.id}
-                    onClick={() => setProductId(product.id)}
-                    className={`cursor-pointer border-2 rounded-lg p-3 transition-colors ${
-                      productId === product.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300'
-                    }`}
-                  >
-                    <div className="aspect-square relative rounded-lg overflow-hidden mb-2">
-                      <img
-                        src={`/api${product.image_url}`}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <p className="text-sm font-medium text-center">{product.name}</p>
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -536,3 +495,106 @@ export default function Home() {
     </div>
   );
 }
+          </div>
+            <FileUpload onFileSelect={handleProductPhotoSelect}>
+              <div className="space-y-4">
+                <div className="mx-auto w-12 h-12 text-gray-400">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-lg font-medium text-gray-900">Upload Product Photo</p>
+                  <p className="text-sm text-gray-500">Clear product image</p>
+                </div>
+              </div>
+            </FileUpload>
+            {productPhoto && productName && (
+              <button
+                onClick={handleUploadProductPhoto}
+                disabled={isLoading}
+                className="w-full bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center"
+              >
+                {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+                Upload Product
+              </button>
+            )}
+          </div>
+          <div>
+            <ImagePreview
+              src={productPhotoPreview}
+              alt="Product photo preview"
+              className="h-64"
+              fallbackText="Upload product photo to see preview"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Product Selection */}
+      {products.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">3. Select Product</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                onClick={() => setSelectedProduct(product)}
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${selectedProduct?.id === product.id
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                  }`}
+              >
+                <div className="aspect-square mb-2">
+                  <ImagePreview
+                    src={`/api/static/${product.filepath}`}
+                    alt={product.name}
+                    className="w-full h-full"
+                  />
+                </div>
+                <p className="text-sm font-medium text-gray-900">{product.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Try On Button */}
+      {user && selectedProduct && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">4. Generate Try-On</h2>
+          <button
+            onClick={handleTryOn}
+            disabled={isLoading}
+            className="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center text-lg font-medium"
+          >
+            {isLoading ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Generating Try-On...
+              </>
+            ) : (
+              'Try On'
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Result Display */}
+      {result && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Try-On Result</h2>
+          <div className="flex justify-center">
+            <ImagePreview
+              src={`/api${result.output_image_url}`}
+              alt="Try-on result"
+              className="max-w-md w-full h-auto"
+              fallbackText="Result image not available"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

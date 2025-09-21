@@ -3,6 +3,14 @@ import time
 from pathlib import Path
 from PIL import Image
 import uuid
+from io import BytesIO
+
+# Enable AVIF support
+try:
+    import pillow_avif  # This enables AVIF support for PIL
+    print("AVIF support enabled in storage")
+except ImportError:
+    print("AVIF support not available in storage")
 
 # Storage configuration
 STORAGE_ROOT = Path("./storage")
@@ -19,9 +27,47 @@ def normalize_filename(timestamp: int, file_type: str, extension: str = "jpg") -
     """Generate normalized filename: <timestamp>_<type>.<extension>"""
     return f"{timestamp}_{file_type}.{extension}"
 
+def convert_to_supported_format(file_content: bytes) -> bytes:
+    """Convert image to a web-supported format (JPEG) if needed"""
+    try:
+        with Image.open(BytesIO(file_content)) as img:
+            # Check if it's AVIF or other unsupported format
+            original_format = img.format
+            print(f"Image format detected: {original_format}")
+            
+            if original_format in ['AVIF', 'HEIC', 'HEIF']:
+                print(f"Converting {original_format} to JPEG...")
+                
+                # Convert to RGB if needed
+                if img.mode in ['RGBA', 'LA']:
+                    # Create white background for transparent images
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    if img.mode == 'RGBA':
+                        background.paste(img, mask=img.split()[-1])
+                    else:
+                        background.paste(img)
+                    img = background
+                elif img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Save as JPEG
+                output_buffer = BytesIO()
+                img.save(output_buffer, format='JPEG', quality=90)
+                return output_buffer.getvalue()
+            
+            # For supported formats, return original
+            return file_content
+            
+    except Exception as e:
+        print(f"Error converting image format: {e}")
+        return file_content
+
 def save_user_photo(user_id: int, file_content: bytes, original_filename: str) -> str:
     """Save user photo and return the filepath"""
     ensure_directories()
+    
+    # Convert to supported format if needed
+    converted_content = convert_to_supported_format(file_content)
     
     # Create user-specific directory
     user_dir = USERS_DIR / str(user_id) / "photos"
@@ -34,7 +80,7 @@ def save_user_photo(user_id: int, file_content: bytes, original_filename: str) -
     
     # Save the file
     with open(filepath, "wb") as f:
-        f.write(file_content)
+        f.write(converted_content)
     
     # Return relative path from storage root
     return str(filepath.relative_to(STORAGE_ROOT))
@@ -42,6 +88,9 @@ def save_user_photo(user_id: int, file_content: bytes, original_filename: str) -
 def save_product_photo(file_content: bytes, original_filename: str) -> tuple[int, str]:
     """Save product photo and return (product_id, filepath)"""
     ensure_directories()
+    
+    # Convert to supported format if needed
+    converted_content = convert_to_supported_format(file_content)
     
     # Generate product ID (using timestamp for simplicity)
     product_id = int(time.time())
@@ -57,7 +106,7 @@ def save_product_photo(file_content: bytes, original_filename: str) -> tuple[int
     
     # Save the file
     with open(filepath, "wb") as f:
-        f.write(file_content)
+        f.write(converted_content)
     
     # Return relative path from storage root
     return product_id, str(filepath.relative_to(STORAGE_ROOT))

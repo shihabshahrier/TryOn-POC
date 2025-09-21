@@ -21,6 +21,7 @@ class ProductResponse(BaseModel):
     id: int
     name: str
     filepath: str
+    image_url: str
     created_at: datetime
     
     class Config:
