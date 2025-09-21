@@ -116,7 +116,7 @@ export default function Home() {
       });
 
       if (!response.ok) throw new Error('Failed to upload user photo');
-      
+
       const uploadedPhoto = await response.json();
       setUserId(user.id);
       console.log('User photo uploaded:', uploadedPhoto);
@@ -145,11 +145,11 @@ export default function Home() {
       });
 
       if (!response.ok) throw new Error('Failed to upload product photo');
-      
+
       const uploadedProduct = await response.json();
       setProductId(uploadedProduct.id);
       console.log('Product uploaded:', uploadedProduct);
-      
+
       // Reload products list
       const productsResponse = await fetch('/api/products');
       const productsList = await productsResponse.json();
@@ -239,11 +239,11 @@ export default function Home() {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
+
             {/* User Photo Section */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-center">👤 Step 1: Your Photo</h2>
-              
+
               <FileUpload onFileSelect={handleUserPhotoSelect}>
                 <div className="space-y-4 text-center">
                   <div className="mx-auto w-12 h-12 text-gray-400">
@@ -262,9 +262,9 @@ export default function Home() {
               {userPhotoPreview && (
                 <div className="mt-4">
                   <div className="aspect-[3/4] relative rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img 
-                      src={userPhotoPreview} 
-                      alt="Your photo" 
+                    <img
+                      src={userPhotoPreview}
+                      alt="Your photo"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -289,7 +289,7 @@ export default function Home() {
             {/* Product Section */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-center">👗 Step 2: Choose Product</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -322,9 +322,9 @@ export default function Home() {
                 {productPhotoPreview && (
                   <div className="mt-4">
                     <div className="aspect-square relative rounded-lg overflow-hidden border-2 border-gray-200">
-                      <img 
-                        src={productPhotoPreview} 
-                        alt="Product photo" 
+                      <img
+                        src={productPhotoPreview}
+                        alt="Product photo"
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -348,7 +348,7 @@ export default function Home() {
             {/* Try-On Result Section */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-center">✨ Step 3: Try-On Result</h2>
-              
+
               {!result ? (
                 <div className="aspect-[3/4] bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
                   <div className="text-center">
@@ -363,9 +363,9 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="aspect-[3/4] relative rounded-lg overflow-hidden border-2 border-green-200">
-                  <img 
+                  <img
                     src={`/api${result.output_image_url}`}
-                    alt="Try-on result" 
+                    alt="Try-on result"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -389,7 +389,7 @@ export default function Home() {
                 '✨ Try It On!'
               )}
             </button>
-            
+
             {(!userId || !productId) && (
               <p className="mt-3 text-sm text-gray-500">
                 {!userId ? '👆 Please upload your photo first' : '👆 Please upload a product photo'}
@@ -401,15 +401,15 @@ export default function Home() {
           {result && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-2xl font-semibold mb-6 text-center">🎉 Your Virtual Try-On Result</h2>
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Original Photo */}
                 <div className="text-center">
                   <h3 className="text-lg font-medium mb-3 text-gray-700">Your Original Photo</h3>
                   <div className="aspect-[3/4] relative rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img 
-                      src={userPhotoPreview || ''} 
-                      alt="Your original photo" 
+                    <img
+                      src={userPhotoPreview || ''}
+                      alt="Your original photo"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -419,9 +419,9 @@ export default function Home() {
                 <div className="text-center">
                   <h3 className="text-lg font-medium mb-3 text-gray-700">Product</h3>
                   <div className="aspect-square relative rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img 
-                      src={productPhotoPreview || ''} 
-                      alt="Product" 
+                    <img
+                      src={productPhotoPreview || ''}
+                      alt="Product"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -432,9 +432,9 @@ export default function Home() {
                 <div className="text-center">
                   <h3 className="text-lg font-medium mb-3 text-green-700">✨ Try-On Result</h3>
                   <div className="aspect-[3/4] relative rounded-lg overflow-hidden border-2 border-green-200">
-                    <img 
+                    <img
                       src={`/api${result.output_image_url}`}
-                      alt="Try-on result" 
+                      alt="Try-on result"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -490,11 +490,10 @@ export default function Home() {
                   <div
                     key={product.id}
                     onClick={() => setProductId(product.id)}
-                    className={`cursor-pointer border-2 rounded-lg p-3 transition-colors ${
-                      productId === product.id
+                    className={`cursor-pointer border-2 rounded-lg p-3 transition-colors ${productId === product.id
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-blue-300'
-                    }`}
+                      }`}
                   >
                     <div className="aspect-square relative rounded-lg overflow-hidden mb-2">
                       <img
